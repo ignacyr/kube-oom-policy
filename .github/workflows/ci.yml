@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Test and inspect Go
+        run: |
+          test -z "$(gofmt -l cmd internal)"
+          go mod verify
+          go test -race ./...
+          go vet ./...
+          go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
+      - name: Install verification tools
+        run: |
+          curl -fsSL -o /tmp/helm.tar.gz https://get.helm.sh/helm-v3.21.4-linux-amd64.tar.gz
+          curl -fsSL -o /tmp/syft.tar.gz https://github.com/anchore/syft/releases/download/v1.51.1/syft_1.51.1_linux_amd64.tar.gz
+          curl -fsSL -o /tmp/gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo '61f88ab166748cb19604d7884cb100ae9ccb13804ddeb98e08af167eacbb6a14  /tmp/helm.tar.gz' | sha256sum --check
+          echo '8fcb33017a0dc1058298c923c436d19dfa68ae93968e0b423248542e3afb9fc3  /tmp/syft.tar.gz' | sha256sum --check
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  /tmp/gitleaks.tar.gz' | sha256sum --check
+          tar -xzf /tmp/helm.tar.gz -C /tmp
+          tar -xzf /tmp/syft.tar.gz -C /tmp syft
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/linux-amd64/helm /tmp/syft /tmp/gitleaks /usr/local/bin/
+      - name: Check repository for secrets
+        run: gitleaks git . --redact --no-banner
+      - name: Validate Helm chart
+        run: |
+          mkdir -p artifacts
+          helm lint --strict charts/kube-oom-policy
+          helm template oom-policy charts/kube-oom-policy --namespace oom-policy-system > artifacts/rendered.yaml
+          helm template scoped charts/kube-oom-policy --set 'namespaces={workloads}' --set oomGroup=true > /tmp/scoped.yaml
+          helm package charts/kube-oom-policy --destination artifacts
+      - name: Build image and inventory
+        run: |
+          docker build --tag kube-oom-policy:ci .
+          syft scan docker:kube-oom-policy:ci -o spdx-json=artifacts/sbom.spdx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: kube-oom-policy-verification
+          path: artifacts/

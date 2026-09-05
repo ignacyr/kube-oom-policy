@@ -1,0 +1,40 @@
+image:
+  repository: kube-oom-policy
+  tag: "0.1.0"
+  digest: "" # Optional sha256 digest; overrides tag.
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# false: memory.oom.group=0 (individual process kills).
+# true: memory.oom.group=1 (group kills). Neither setting prevents OOM.
+oomGroup: false
+
+# All node conditions are ANDed. Use your cluster's node pool labels.
+# Linux is required; cgroup v2 must be enabled on the selected nodes.
+nodeSelector:
+  kubernetes.io/os: linux
+nodeSelectorExpressions: []
+# - key: nodepool
+#   operator: In
+#   values: [interactive, batch]
+tolerations: []
+
+# Required Kubernetes label selector; there is no match-all default.
+podSelector: oom-policy=managed
+namespaces: [] # Empty means all namespaces; otherwise RBAC is namespace-scoped.
+podNames: [] # Optional exact names, intersected with podSelector and namespaces.
+containerNames: [] # Empty selects every regular container; init containers are skipped.
+excludedContainerNames: # Exclusions take precedence over containerNames.
+  - istio-proxy
+  - linkerd-proxy
+
+pollInterval: 5s
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 24Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
