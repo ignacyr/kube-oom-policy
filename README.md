@@ -120,11 +120,22 @@ CI runs tests, dependency-vulnerability and secret scans, builds the image, and
 uploads its SPDX SBOM with the packaged chart. It has read-only repository access
 and does not publish images. See [CI runs](https://github.com/ignacyr/kube-oom-policy/actions).
 
-Live checks on Docker Desktop Kubernetes 1.36.1 with containerd 2.3.1 and cgroup v2
-verified workload selection, namespace RBAC and reapplication after a container
-restart. Three real child-process OOMs left PID 1 alive without OOM-induced
-container restarts. Both amd64 and arm64 images build; ARM runtime behavior and
-other cluster distributions have not been verified.
+Live integration checks passed on these cgroup v2 environments:
+
+| Environment | Runtime | Real child-process OOM tests |
+| --- | --- | --- |
+| Docker Desktop Kubernetes 1.36.1 | containerd 2.3.1 | 3 |
+| AKS 1.35.7, Ubuntu 24.04.4 | containerd 2.3.3-2 | 4 |
+
+Checks covered workload selection, exclusions, namespace RBAC, both control
+values and reapplication after a container restart. Every OOM test left PID 1
+alive without an OOM-induced container restart. On AKS, scaling the user pool
+from one to two nodes automatically installed the agent and configured a new
+selected container. The original node's kubelet cgroup settings and process
+start time stayed unchanged; the system pool was excluded.
+
+Both amd64 and arm64 images build. Live tests used amd64; ARM runtime behavior,
+other cluster distributions and large-scale performance have not been verified.
 
 Contributions should keep the tool focused on this one control. Include a
 regression test and update the values or security notes when behavior changes.

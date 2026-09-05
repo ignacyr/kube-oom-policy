@@ -77,9 +77,9 @@ container with different values will compete; avoid overlapping policies.
 
 ## Reporting
 
-While the repository is private, report findings to its owner through your
-existing private channel. After publication, use GitHub private vulnerability
-reporting if enabled. Do not post vulnerabilities or secrets in public issues.
+Report vulnerabilities privately through
+[GitHub's vulnerability reporting form](https://github.com/ignacyr/kube-oom-policy/security/advisories/new).
+Do not post vulnerabilities or secrets in public issues.
 
 ## References
 
